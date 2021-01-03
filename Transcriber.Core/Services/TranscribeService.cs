@@ -8,15 +8,16 @@ using System.Threading.Tasks;
 
 namespace Transcriber.Core.Services
 {
-    public class TranscribeService
+    public class TranscribeService : ITranscribeService
     {
-        async Task TranscribeFile(string filePath)
+        private string _transcribedText;
+
+        public async Task<string> TranscribeFile(string filePath)
         {
             ClientWebSocket ws = new ClientWebSocket();
             await ws.ConnectAsync(new Uri("wss://api.alphacephei.com/asr/ru/"), CancellationToken.None);
 
-            FileStream fsSource = new FileStream(filePath,
-                       FileMode.Open, FileAccess.Read);
+            FileStream fsSource = new FileStream(filePath, FileMode.Open, FileAccess.Read);
 
             byte[] data = new byte[8000];
             while (true)
@@ -29,6 +30,7 @@ namespace Transcriber.Core.Services
             await ProcessFinalData(ws);
 
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", CancellationToken.None);
+            return _transcribedText;
         }
 
         async Task ProcessData(ClientWebSocket ws, byte[] data, int count)
@@ -50,8 +52,9 @@ namespace Transcriber.Core.Services
             Task<WebSocketReceiveResult> receiveTask = ws.ReceiveAsync(new ArraySegment<byte>(result), CancellationToken.None);
             await receiveTask;
             var receivedString = Encoding.UTF8.GetString(result, 0, receiveTask.Result.Count);
-            Console.WriteLine("Result {0}", receivedString);
+            _transcribedText += receivedString;
         }
+
     }
 
 }

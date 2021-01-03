@@ -1,4 +1,6 @@
-﻿using MvvmCross.ViewModels;
+﻿using MvvmCross;
+using MvvmCross.ViewModels;
+using Transcriber.Core.Services;
 using Transcriber.Core.ViewModels;
 
 namespace Transcriber.Core
@@ -7,6 +9,7 @@ namespace Transcriber.Core
     {
         public override void Initialize()
         {
+            Mvx.IoCProvider.RegisterType<ITranscribeService, TranscribeService>();
             RegisterAppStart<RootViewModel>();
         }
     }

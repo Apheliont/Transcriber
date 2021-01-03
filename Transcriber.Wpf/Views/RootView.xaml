@@ -33,7 +33,7 @@
             Height="25"
             Margin="10,41,10,0"
             VerticalAlignment="Top"
-            Text="{Binding SelectedFilePath, Mode=TwoWay}"
+            Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
             TextWrapping="Wrap" />
         <Button
             Width="85"
@@ -51,7 +51,7 @@
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
             IsEnabled="{Binding CanProcessFile}"
-            Command="{Binding InferenceFromFileCommand}"
+            mvx:Bi.nd="Command TranscribeFromFileCommand"
             Content="Транскрибировать" />
         <Label
             Height="30"

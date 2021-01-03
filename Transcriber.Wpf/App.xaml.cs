@@ -1,6 +1,8 @@
 ﻿using MvvmCross.Platforms.Wpf.Views;
 using MvvmCross.Platforms.Wpf.Core;
 using MvvmCross.Core;
+using System.Configuration;
+using System;
 
 namespace Transcriber.Wpf
 {
@@ -9,6 +11,10 @@ namespace Transcriber.Wpf
         protected override void RegisterSetup()
         {
             this.RegisterSetupType<MvxWpfSetup<Core.App>>();
+
+            var appSettings = ConfigurationManager.AppSettings;
+            string result = appSettings["TranscriberServerAddress"];
+            Console.WriteLine(result);
         }
     }
 }

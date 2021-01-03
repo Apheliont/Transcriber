@@ -7,6 +7,6 @@ namespace Transcriber.Core.Services
 {
     public interface ITranscribeService
     {
-        Task TranscribeFile(string filePath);
+        Task<string> TranscribeFile(string filePath);
     }
 }
