@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Transcriber.Core", "Transcriber.Core\Transcriber.Core.csproj", "{845F6F22-FB3E-48A7-85F2-59832EAD0835}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Transcriber.Wpf", "Transcriber.Wpf\Transcriber.Wpf.csproj", "{28083238-6F30-47F2-9F47-7932CCCFC285}"
+	ProjectSection(ProjectDependencies) = postProject
+		{845F6F22-FB3E-48A7-85F2-59832EAD0835} = {845F6F22-FB3E-48A7-85F2-59832EAD0835}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{845F6F22-FB3E-48A7-85F2-59832EAD0835}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{845F6F22-FB3E-48A7-85F2-59832EAD0835}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{845F6F22-FB3E-48A7-85F2-59832EAD0835}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{845F6F22-FB3E-48A7-85F2-59832EAD0835}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28083238-6F30-47F2-9F47-7932CCCFC285}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28083238-6F30-47F2-9F47-7932CCCFC285}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28083238-6F30-47F2-9F47-7932CCCFC285}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28083238-6F30-47F2-9F47-7932CCCFC285}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3B8F4183-AE8A-44E2-9E86-5DD5195A7CF2}
+	EndGlobalSection
+EndGlobal
