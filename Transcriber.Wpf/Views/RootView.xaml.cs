@@ -12,7 +12,7 @@ namespace Transcriber.Wpf.Views
             InitializeComponent();
         }
 
-        private void selectFilePath(object sender, System.Windows.RoutedEventArgs e)
+        private void SelectFilePath(object sender, System.Windows.RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog
             {

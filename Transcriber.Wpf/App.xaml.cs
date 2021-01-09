@@ -12,9 +12,7 @@ namespace Transcriber.Wpf
         {
             this.RegisterSetupType<MvxWpfSetup<Core.App>>();
 
-            var appSettings = ConfigurationManager.AppSettings;
-            string result = appSettings["TranscriberServerAddress"];
-            Console.WriteLine(result);
+            var transcriberServerUri = ConfigurationManager.AppSettings.Get("transcriberServerUri");
         }
     }
 }

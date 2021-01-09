@@ -10,13 +10,22 @@ namespace Transcriber.Core.Services
 {
     public class TranscribeService : ITranscribeService
     {
-        private string _transcribedText;
-
-        public async Task<string> TranscribeFile(string filePath)
+        private readonly ITransportService _transportService;
+        public event EventHandler<string> NewTranscriptionData;
+        public TranscribeService(ITransportService transportService)
         {
-            ClientWebSocket ws = new ClientWebSocket();
-            await ws.ConnectAsync(new Uri("wss://api.alphacephei.com/asr/ru/"), CancellationToken.None);
+            _transportService = transportService;
+            _transportService.NewDataRecieved += OnNewData;
 
+        }
+
+        private void OnNewData(object sender, string data)
+        {
+            NewTranscriptionData?.Invoke(this, data);
+        }
+
+        public async Task TranscribeFile(string filePath)
+        {
             FileStream fsSource = new FileStream(filePath, FileMode.Open, FileAccess.Read);
 
             byte[] data = new byte[8000];
@@ -25,35 +34,16 @@ namespace Transcriber.Core.Services
                 int count = fsSource.Read(data, 0, 8000);
                 if (count == 0)
                     break;
-                await ProcessData(ws, data, count);
+                await _transportService.SendData(data, count);
             }
-            await ProcessFinalData(ws);
-
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", CancellationToken.None);
-            return _transcribedText;
+            await _transportService.SendFinalData();
         }
 
-        async Task ProcessData(ClientWebSocket ws, byte[] data, int count)
+        public async Task TranscribeChunk(byte[] data, int count)
         {
-            await ws.SendAsync(new ArraySegment<byte>(data, 0, count), WebSocketMessageType.Binary, true, CancellationToken.None);
-            await RecieveResult(ws);
+            await _transportService.SendData(data, count);
         }
 
-        async Task ProcessFinalData(ClientWebSocket ws)
-        {
-            byte[] eof = Encoding.UTF8.GetBytes("{\"eof\" : 1}");
-            await ws.SendAsync(new ArraySegment<byte>(eof), WebSocketMessageType.Text, true, CancellationToken.None);
-            await RecieveResult(ws);
-        }
-
-        async Task RecieveResult(ClientWebSocket ws)
-        {
-            byte[] result = new byte[4096];
-            Task<WebSocketReceiveResult> receiveTask = ws.ReceiveAsync(new ArraySegment<byte>(result), CancellationToken.None);
-            await receiveTask;
-            var receivedString = Encoding.UTF8.GetString(result, 0, receiveTask.Result.Count);
-            _transcribedText += receivedString;
-        }
 
     }
 

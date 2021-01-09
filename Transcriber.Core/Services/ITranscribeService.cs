@@ -7,6 +7,8 @@ namespace Transcriber.Core.Services
 {
     public interface ITranscribeService
     {
-        Task<string> TranscribeFile(string filePath);
+        Task TranscribeFile(string filePath);
+        Task TranscribeChunk(byte[] data, int count);
+        event EventHandler<string> NewTranscriptionData;
     }
 }

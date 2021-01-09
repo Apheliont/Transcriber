@@ -10,6 +10,7 @@ namespace Transcriber.Core
         public override void Initialize()
         {
             Mvx.IoCProvider.RegisterType<ITranscribeService, TranscribeService>();
+            Mvx.IoCProvider.RegisterType<ITransportService, TransportWebSockets>();
             RegisterAppStart<RootViewModel>();
         }
     }
