@@ -97,8 +97,7 @@ namespace Transcriber.Core.ViewModels
 
             set
             {
-                //". " + char.ToUpper(value[0]) + value.Substring(1);
-                _transcription += value + '\n';
+                _transcription += " " + value;
                 Partial = string.Empty;
                 RaisePropertyChanged(() => Transcription);
             }
@@ -106,9 +105,6 @@ namespace Transcriber.Core.ViewModels
 
         private void ProcessRawData(object sender, string rawStr)
         {
-            Transcription = rawStr;
-            RaisePropertyChanged(() => Transcription);
-            return;
             try
             {
                 JObject respond = JObject.Parse(rawStr);

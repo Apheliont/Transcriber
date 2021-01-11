@@ -46,7 +46,7 @@ namespace Transcriber.Core.Services
 
         private async Task RecieveData()
         {
-            byte[] result = new byte[4096];
+            byte[] result = new byte[8192];
             Task<WebSocketReceiveResult> receiveTask = _ws.ReceiveAsync(new ArraySegment<byte>(result), CancellationToken.None);
             await receiveTask;
             NewDataRecieved?.Invoke(this, Encoding.UTF8.GetString(result, 0, receiveTask.Result.Count));
