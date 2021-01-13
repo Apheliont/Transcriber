@@ -27,7 +27,7 @@ namespace Transcriber.Core.ViewModels
         private string _transcription;
         private string _partial;
 
-        private WaveFileWriter _writer;
+        private ConcurrentQueue<byte[]> _bufferQueue = new ConcurrentQueue<byte[]>();
         private BufferedWaveProvider _bufferedWaveProvider;
         private MediaFoundationResampler _resampler;
         private string _selectedFilePath;
@@ -118,14 +118,15 @@ namespace Transcriber.Core.ViewModels
                     Transcription = respond["text"].ToString();
                     RaisePropertyChanged(() => Transcription);
                 }
-            } catch(JsonReaderException e)
+            }
+            catch (JsonReaderException e)
             {
                 DebugInfo = e.Message;
             }
-            
+
         }
 
-        private ConcurrentQueue<byte[]> _bufferQueue = new ConcurrentQueue<byte[]>();
+
         public string DebugInfo
         {
             get => _debugInfo;
@@ -190,7 +191,7 @@ namespace Transcriber.Core.ViewModels
             var enumerator = new MMDeviceEnumerator();
             CaptureDevices = enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToArray();
 
-            
+
             //AvailableRecordDevices = new ObservableCollection<MMDevice>(enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active));
 
             if (CaptureDevices.Count() != 0)
@@ -239,7 +240,8 @@ namespace Transcriber.Core.ViewModels
 
         void OnRecordingStopped(object sender, StoppedEventArgs e)
         {
-            if (e.Exception == null) {
+            if (e.Exception == null)
+            {
                 /*Message = "Recording Stopped";*/
             }
             else
@@ -247,10 +249,11 @@ namespace Transcriber.Core.ViewModels
                 /*Message = "Recording Error: " + e.Exception.Message;*/
             }
 
-            _writer.Dispose();
             _audioCapture.Dispose();
             _audioCapture = null;
+            _bufferQueue = new ConcurrentQueue<byte[]>();
             _bufferedWaveProvider.ClearBuffer();
+
             EnableStopRecord = false;
             EnableStartRecord = true;
         }
@@ -260,15 +263,9 @@ namespace Transcriber.Core.ViewModels
 
             _bufferedWaveProvider.AddSamples(waveInEventArgs.Buffer, 0, waveInEventArgs.BytesRecorded);
 
-            
-
-            int read;
             byte[] buffer = new byte[1000];
-            read = _resampler.Read(buffer, 0, buffer.Length);
-            /*            while ((read = ieeeToPcm.Read(buffer, 0, buffer.Length)) > 0)
-                        {*/
-            //_writer.Write(buffer, 0, read);
-            //}
+            _resampler.Read(buffer, 0, buffer.Length);
+
             _bufferQueue.Enqueue(buffer);
             Task.Run(WriteData);
             //UpdatePeakMeter();
@@ -277,29 +274,42 @@ namespace Transcriber.Core.ViewModels
         private async Task WriteData()
         {
             if (StreamingIsBusy) return;
+            // Лочим под отдельный поток
+            StreamingIsBusy = true;
 
-            while (_audioCapture != null)
+            // отправляем серверу куски по 8000 байт
+            byte[] buf = new byte[8000];
+
+            while (true)
             {
-                DebugInfo = _bufferQueue.Count.ToString();
-                StreamingIsBusy = true;
-                if (_bufferQueue.Count < 50)
+                if (_bufferQueue.Count < 8 && _audioCapture != null)
                 {
-                    await Task.Delay(1000);
+                    await Task.Delay(300);
                     continue;
                 }
-                byte[] buf = new byte[8000];
+                if (_bufferQueue.Count == 0 && _audioCapture == null)
+                {
+                    break;
+                }
+
+                DebugInfo = _bufferQueue.Count.ToString();
+
                 for (int i = 0; i < 8; i++)
                 {
                     if (_bufferQueue.TryDequeue(out byte[] buffer))
                     {
-                        //
                         Buffer.BlockCopy(buffer, 0, buf, i * 1000, buffer.Length);
                     }
-                    
+                    else
+                    {
+                        buf = buf.Take(i * 1000).ToArray();
+                        break;
+                    }
                 }
-
                 await _transcribeService.TranscribeChunk(buf, buf.Length);
+
             }
+            DebugInfo = _bufferQueue.Count.ToString();
             StreamingIsBusy = false;
         }
 
