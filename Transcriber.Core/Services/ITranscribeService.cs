@@ -10,5 +10,6 @@ namespace Transcriber.Core.Services
         Task TranscribeFile(string filePath);
         Task TranscribeChunk(byte[] data, int count);
         event EventHandler<string> NewTranscriptionData;
+        event EventHandler<int> PercentageTranscribed;
     }
 }

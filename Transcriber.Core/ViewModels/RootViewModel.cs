@@ -26,7 +26,8 @@ namespace Transcriber.Core.ViewModels
         private string _debugInfo;
         private string _transcription;
         private string _partial;
-
+        private readonly IConfigurationService _configurationService;
+        private string _selectedLanguage;
         private ConcurrentQueue<byte[]> _bufferQueue = new ConcurrentQueue<byte[]>();
         private BufferedWaveProvider _bufferedWaveProvider;
         private MediaFoundationResampler _resampler;
@@ -34,6 +35,8 @@ namespace Transcriber.Core.ViewModels
         private readonly ITranscribeService _transcribeService;
         private MMDevice _selectedDevice;
         private ObservableCollection<MMDevice> _deviceNames;
+        private IEnumerable<string> _availableLanguages;
+
         private bool _enableStartRecord;
         private bool _stopRecordStopRecord;
         /// Records the audio of the selected device.
@@ -41,35 +44,55 @@ namespace Transcriber.Core.ViewModels
 
         /// Converts the device source into a wavesource.
 
-        private float recordLevel;
+        private float _recordLevel = 0;
 
         public IMvxAsyncCommand TranscribeFromFileCommand { get; set; }
         public IMvxCommand StopRecordingCommand { get; set; }
         public IMvxCommand StartRecordingCommand { get; set; }
 
 
-        public RootViewModel(ITranscribeService transcribeService)
+        public RootViewModel(ITranscribeService transcribeService, IConfigurationService _configurationService)
         {
             _transcription = string.Empty;
             _partial = string.Empty;
-
-            //_writer = new WaveFileWriter("test.wav", new WaveFormat(8000, 16, 1));
+            _configurationService = new ConfigurationService();
             _transcribeService = transcribeService;
             _transcribeService.NewTranscriptionData += ProcessRawData;
+            _transcribeService.PercentageTranscribed += UpdatePercentageTranscribed;
             TranscribeFromFileCommand = new MvxAsyncCommand(async () => await _transcribeService.TranscribeFile(SelectedFilePath));
+
 
             StopRecordingCommand = new MvxCommand(StopRecording);
 
             StartRecordingCommand = new MvxCommand(() =>
             {
-                if (CanExecuteStartRecording())
-                {
                     StartRecord();
-                }
             });
 
-            LoadAvailableCaptureDevices();
+            AvailableLanguages = _configurationService.GetLanguages().Keys.AsEnumerable();
+            if (AvailableLanguages.Count() != 0)
+            {
+                SelectedLanguage = AvailableLanguages.First();
+            }
+            EnableStartRecord = true;
         }
+
+        private void UpdatePercentageTranscribed(object sender, int percentage)
+        {
+            DebugInfo = percentage.ToString();
+            PercentageTranscribed = percentage;
+        }
+
+        private int _percentageTranscribed;
+
+        public int PercentageTranscribed
+        {
+            get => _percentageTranscribed;
+            set {
+                SetProperty(ref _percentageTranscribed, value);
+            }
+        }
+
 
         private string Partial
         {
@@ -138,17 +161,13 @@ namespace Transcriber.Core.ViewModels
 
         public float RecordLevel
         {
-            get => recordLevel;
+            get => _recordLevel;
             set
             {
                 // ReSharper disable once CompareOfFloatsByEqualityOperator
-                if (recordLevel != value)
+                if (_recordLevel != value)
                 {
-                    SetProperty(ref recordLevel, value);
-                    if (_audioCapture != null)
-                    {
-                        SelectedDevice.AudioEndpointVolume.MasterVolumeLevelScalar = value;
-                    }
+                    SetProperty(ref _recordLevel, value * 100);
                 }
             }
         }
@@ -185,37 +204,14 @@ namespace Transcriber.Core.ViewModels
             }
         }
 
-        private void LoadAvailableCaptureDevices()
-        {
-
-            var enumerator = new MMDeviceEnumerator();
-            CaptureDevices = enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToArray();
-
-
-            //AvailableRecordDevices = new ObservableCollection<MMDevice>(enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active));
-
-            if (CaptureDevices.Count() != 0)
-            {
-                SelectedDevice = CaptureDevices.First();
-                EnableStartRecord = true;
-            }
-
-        }
-
-
 
 
         private void StartRecord()
         {
-            if (SelectedDevice != null)
-            {
+
                 try
                 {
-                    _audioCapture = SelectedDevice.DataFlow == DataFlow.Capture ?
-                        new WasapiCapture() : new WasapiLoopbackCapture();
-
-                    //RecordLevel = SelectedDevice.AudioEndpointVolume.MasterVolumeLevelScalar;
-                    /*                    capture.StartRecording();*/
+                    _audioCapture = new WasapiLoopbackCapture();
 
                     _audioCapture.RecordingStopped += OnRecordingStopped;
                     _audioCapture.DataAvailable += OnDataAvailable;
@@ -235,7 +231,24 @@ namespace Transcriber.Core.ViewModels
                 {
                     /*MessageBox.Show(e.Message);*/
                 }
+        }
+
+        private float CalculateRecordLevel(WaveInEventArgs args)
+        {
+            float max = 0;
+            var buffer2 = new WaveBuffer(args.Buffer);
+            // interpret as 32 bit floating point audio
+            for (int index = 0; index < args.BytesRecorded / 4; index++)
+            {
+                var sample = buffer2.FloatBuffer[index];
+
+                // absolute value 
+                if (sample < 0) sample = -sample;
+                // is this the max value?
+                if (sample > max) max = sample;
             }
+
+            return max;
         }
 
         void OnRecordingStopped(object sender, StoppedEventArgs e)
@@ -253,13 +266,14 @@ namespace Transcriber.Core.ViewModels
             _audioCapture = null;
             _bufferQueue = new ConcurrentQueue<byte[]>();
             _bufferedWaveProvider.ClearBuffer();
-
+            RecordLevel = 0.0F;
             EnableStopRecord = false;
             EnableStartRecord = true;
         }
 
         private void OnDataAvailable(object sender, WaveInEventArgs waveInEventArgs)
         {
+            RecordLevel = CalculateRecordLevel(waveInEventArgs);
 
             _bufferedWaveProvider.AddSamples(waveInEventArgs.Buffer, 0, waveInEventArgs.BytesRecorded);
 
@@ -268,7 +282,7 @@ namespace Transcriber.Core.ViewModels
 
             _bufferQueue.Enqueue(buffer);
             Task.Run(WriteData);
-            //UpdatePeakMeter();
+
         }
 
         private async Task WriteData()
@@ -292,7 +306,6 @@ namespace Transcriber.Core.ViewModels
                     break;
                 }
 
-                DebugInfo = _bufferQueue.Count.ToString();
 
                 for (int i = 0; i < 8; i++)
                 {
@@ -309,32 +322,34 @@ namespace Transcriber.Core.ViewModels
                 await _transcribeService.TranscribeChunk(buf, buf.Length);
 
             }
-            DebugInfo = _bufferQueue.Count.ToString();
             StreamingIsBusy = false;
         }
 
-        public IEnumerable<MMDevice> CaptureDevices { get; set; }
 
         private void StopRecording()
         {
             _audioCapture?.StopRecording();
         }
 
-
-        public ObservableCollection<MMDevice> AvailableRecordDevices
+        public IEnumerable<string> AvailableLanguages
         {
-            get => _deviceNames;
-            set => SetProperty(ref _deviceNames, value);
-        }
-
-        public MMDevice SelectedDevice
-        {
-            get => _selectedDevice;
+            get => _availableLanguages;
             set
             {
-                SetProperty(ref _selectedDevice, value);
+                SetProperty(ref _availableLanguages, value);
             }
         }
+
+        public string SelectedLanguage
+        {
+            get => _selectedLanguage;
+            set
+            {
+                SetProperty(ref _selectedLanguage, value);
+            }
+        }
+
+
         // =========Capture Audio End ============
 
 
@@ -349,6 +364,5 @@ namespace Transcriber.Core.ViewModels
         }
 
         public bool CanProcessFile => SelectedFilePath?.Length > 0;
-        private bool CanExecuteStartRecording() => SelectedDevice != null;
     }
 }

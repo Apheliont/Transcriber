@@ -1,8 +1,7 @@
 ﻿using MvvmCross.Platforms.Wpf.Views;
 using MvvmCross.Platforms.Wpf.Core;
 using MvvmCross.Core;
-using System.Configuration;
-using System;
+
 
 namespace Transcriber.Wpf
 {
@@ -10,9 +9,7 @@ namespace Transcriber.Wpf
     {
         protected override void RegisterSetup()
         {
-            this.RegisterSetupType<MvxWpfSetup<Core.App>>();
-
-            var transcriberServerUri = ConfigurationManager.AppSettings.Get("transcriberServerUri");
+            this.RegisterSetupType<MvxWpfSetup<Core.App>>();        
         }
     }
 }

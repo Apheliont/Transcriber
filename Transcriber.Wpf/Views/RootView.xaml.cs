@@ -16,7 +16,7 @@ namespace Transcriber.Wpf.Views
         {
             OpenFileDialog dialog = new OpenFileDialog
             {
-                Filter = "wav Files |*.wav",
+                Filter = "Media Files |*.wav;*.mp3;*.mp4;*.avi;*.mov;*.mpeg;*.mkv;*.mxf",
                 Multiselect = false,
                 Title = "Please select a wav file."
             };

@@ -5,90 +5,206 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             mc:Ignorable="d"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+             TextElement.FontWeight="Regular"
+             TextElement.FontSize="13"
+             TextOptions.TextFormattingMode="Ideal" 
+             TextOptions.TextRenderingMode="Auto"  
+             Background="{DynamicResource MaterialDesignPaper}"
+             FontFamily="{DynamicResource MaterialDesignFont}"
+             d:DesignHeight="600" d:DesignWidth="900">
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="250" />
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="222" />
+            <RowDefinition Height="35"/>
             <RowDefinition />
         </Grid.RowDefinitions>
-        <TextBox
-            Grid.Row="1"
-            Margin="10,36,10,10"
+        <Border Grid.Column ="1" Grid.Row="1" Background="white"/>
+        <Border Grid.Column="2"  Grid.Row="1" Background="#eee"/>
+
+        <Menu Grid.Row="0" Grid.ColumnSpan="3" IsMainMenu="True" FontSize="14" Padding="4" >
+            <MenuItem Header="_File" Height="30">
+                <MenuItem
+      Header="Save"
+      Icon="{materialDesign:PackIcon Kind=ContentSave}"></MenuItem>
+                <MenuItem
+      Header="Save As.." />
+                <MenuItem
+      Header="Exit"
+      InputGestureText="Ctrl+E"
+      Icon="{materialDesign:PackIcon Kind=ExitToApp}" />
+                <Separator />
+                <MenuItem
+      Header="Excellent"
+      IsCheckable="True"
+      IsChecked="True" />
+                <MenuItem
+      Header="Rubbish"
+      IsCheckable="True" />
+                <MenuItem
+      Header="Dig Deeper"
+      InputGestureText="Ctrl+D">
+                    <MenuItem
+        Header="Enlightenment?"
+        IsCheckable="True" />
+                    <MenuItem
+        Header="Disappointment"
+        IsCheckable="True" />
+                </MenuItem>
+                <MenuItem
+      Header="Look Deeper"
+      InputGestureText="Ctrl+D">
+                    <MenuItem
+        Header="Plain" />
+                    <MenuItem
+        Header="Ice Cream" />
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Edit" Height="30">
+                <MenuItem
+      Header="_Cut"
+      Command="Cut"
+      Icon="{materialDesign:PackIcon Kind=ContentCut}" />
+                <MenuItem
+      Header="_Copy"
+      Command="Copy"
+      Icon="{materialDesign:PackIcon Kind=ContentCopy}" />
+                <MenuItem
+      Header="_Paste"
+      Command="Paste"
+      Icon="{materialDesign:PackIcon Kind=ContentPaste}" />
+            </MenuItem>
+        </Menu>
+
+        <StackPanel Grid.Column="2" Grid.Row="1" HorizontalAlignment="Left" Margin="10" VerticalAlignment="Stretch">
+            <Label Content="Выберите язык:"></Label>
+            <ComboBox
+                    Style="{StaticResource MaterialDesignFilledComboBox}"
+                    materialDesign:HintAssist.Hint="Язык"
+                    ItemsSource="{Binding AvailableLanguages, Mode=TwoWay}"
+                    SelectedIndex="0"
+            Width="230" />
+            <Label
+            Margin="0,20,0,10"
+            Content="Выберите файл:" />
+            <TextBox
+                Background="White"
+                materialDesign:HintAssist.Hint="Путь до файла"
+                materialDesign:TextFieldAssist.RippleOnFocusEnabled="True"
+                materialDesign:TextFieldAssist.HasClearButton="True"
+                materialDesign:TextFieldAssist.HasOutlinedTextField="True"
+                Margin="0,0,0,10"
+                Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 />
+            <Button
+                Opacity=".9"
+                Foreground="White"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Click="SelectFilePath"
+                Content="Выбрать"
+            />
+
+        </StackPanel>
+        <StackPanel Grid.Column="2" Grid.Row="1" VerticalAlignment="Bottom" Height="auto" Margin="10">
+            <Button
+                Style="{StaticResource MaterialDesignRaisedAccentButton}"
+                materialDesign:ShadowAssist.ShadowDepth="Depth2"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Right"
+                Margin="0,350,0,0"
+                Width="150"
+                materialDesign:ButtonProgressAssist.Value="-1"
+                materialDesign:ButtonProgressAssist.IsIndicatorVisible="False"
+                materialDesign:ButtonProgressAssist.IsIndeterminate="False"
+                Content="Начать"
+                Cursor="Hand"
+            />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Grid.Row="1" VerticalAlignment="Stretch">
+            <ToolBarTray Background="#eee">
+                <ToolBar Height="40" Background="#eee"
+    Style="{DynamicResource MaterialDesignToolBar}"
+    ClipToBounds="False">
+                    <Button ToolTip="Сохранить" Padding="5">
+                        <materialDesign:PackIcon Kind="ContentSave" Margin="0" Width="20" Height="20" RenderTransformOrigin="0.6,-1" />
+                    </Button>
+                    <Separator />
+                    <Button Padding="5"
+      Command="Cut"
+      ToolTip="Вырезать"
+      ToolBar.OverflowMode="AsNeeded"
+      >
+                        <materialDesign:PackIcon Kind="ContentCut" Width="20" Height="20" />
+                    </Button>
+                    <Button Padding="5"
+      Command="Copy"
+      ToolTip="Скопировать выделенный фрагмент"
+      ToolBar.OverflowMode="AsNeeded"
+      >
+                        <materialDesign:PackIcon Kind="ContentCopy" Width="20" Height="20" />
+                    </Button>
+
+                    <Button Padding="5"
+      Command="Paste"
+      ToolTip="Вставить"
+      ToolBar.OverflowMode="AsNeeded"
+     >
+                        <materialDesign:PackIcon Kind="ContentPaste" Width="20" Height="20" />
+                    </Button>
+
+                    <Separator />
+                    <Label
+      Content="Кегль:"
+      VerticalAlignment="Center" />
+                    <ComboBox>
+                        <ComboBoxItem
+        Content="10" />
+                        <ComboBoxItem
+        IsSelected="True"
+        Content="12" />
+                        <ComboBoxItem
+        Content="14" />
+                        <ComboBoxItem
+        Content="16" />
+                    </ComboBox>
+                    <CheckBox
+      Content="Check" />
+
+                    <Separator />
+                    <ToggleButton />
+                </ToolBar>
+            </ToolBarTray>
+            <TextBox
+            SpellCheck.IsEnabled="True"
             FontSize="16px"
             Text="{Binding Transcription, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
             TextWrapping="Wrap"
+            VerticalAlignment="Stretch"
             VerticalScrollBarVisibility="Auto" />
-        <Label
-            Grid.Row="1"
-            Height="26"
-            Margin="10,5,10,0"
-            VerticalAlignment="Top"
-            Content="Результат:" />
-        <Label
-            Height="26"
-            Margin="10,10,10,0"
-            VerticalAlignment="Top"
-            Content="Выберите файл для транскрибирования:" />
-        <TextBox
-            Height="25"
-            Margin="10,41,10,0"
-            VerticalAlignment="Top"
-            Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-            TextWrapping="Wrap" />
-        <Button
-            Width="85"
-            Height="25"
-            Margin="10,75,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Click="SelectFilePath"
-            Content="Выбрать файл" />
-        
-        <Button
-            Width="115"
-            Height="25"
-            Margin="100,75,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            IsEnabled="{Binding CanProcessFile}"
-            mvx:Bi.nd="Command TranscribeFromFileCommand"
-            Content="Транскрибировать" />
+        </StackPanel>
         <Label Height="26"
+               Grid.Column="2"
+               Grid.Row="1"
                d:Content="Info"
                Content="{Binding DebugInfo}"
-            Margin="10,130,10,0"
+            Margin="10,300,10,0"
             VerticalAlignment="Top" />
-        <Label
-            Height="26"
-            Margin="10,158,10,0"
-            VerticalAlignment="Top"
-            Content="Выберите источник звука:" />
-        <ComboBox
-            Height="25"
-            Margin="10,189,186,0"
-            VerticalAlignment="Top"
-            DisplayMemberPath="FriendlyName"
-            ItemsSource="{Binding CaptureDevices, Mode=TwoWay}"
-            SelectedIndex="0"
-            SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" />
-        <Button
-            Width="75"
-            Height="25"
-            Margin="0,0,100,8"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            mvx:Bi.nd="Command StartRecordingCommand"
-            Content="Запись"
-            IsEnabled="{Binding EnableStartRecord, Mode=OneWay}" />
-        <Button
-            Width="75"
-            Height="25"
-            Margin="0,0,10,8"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            mvx:Bi.nd="Command StopRecordingCommand"
-            Content="Остановить"
-            IsEnabled="{Binding EnableStopRecord, Mode=OneWay}" />
+
+        <ProgressBar
+            Grid.Row="1"
+            Grid.Column="0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Orientation="Vertical"
+            Value="{Binding RecordLevel}"
+            Height="20"
+            />
     </Grid>
 </views:MvxWpfView>

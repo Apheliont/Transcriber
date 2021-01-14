@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+
 namespace Transcriber.Core.Services
 {
     public class TransportWebSockets : ITransportService
