@@ -14,7 +14,6 @@ namespace Transcriber.Core.Services
     public class TranscribeService : ITranscribeService
     {
         private readonly ITransportService _transportService;
-        public bool TranscriptiptionShouldStop { get; set; } = false;
         public event EventHandler<string> NewTranscriptionData;
         public event EventHandler<int> PercentageTranscribed;
         public TranscribeService(ITransportService transportService)
@@ -29,14 +28,14 @@ namespace Transcriber.Core.Services
             NewTranscriptionData?.Invoke(this, data);
         }
 
-        public async Task TranscribeFile(string filePath)
+        public async Task TranscribeFile(string filePath, CancellationToken cancellationToken)
         {
             long inputFileSize = new FileInfo(filePath).Length;
             long totalBytesRead = 0;
 
             var process = new Process();
             process.StartInfo.FileName = "ffmpeg.exe";
-            process.StartInfo.Arguments = $"-i {filePath} -ar 8000 -ac 1 -f s16le -";
+            process.StartInfo.Arguments = $"-i \"{filePath}\" -ar 8000 -ac 1 -f s16le -";
             process.StartInfo.RedirectStandardInput = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.UseShellExecute = false;
@@ -47,13 +46,13 @@ namespace Transcriber.Core.Services
 
             var buffer = new byte[8000];
             int read;
-            while ((read = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0 && !TranscriptiptionShouldStop)
+            while ((read = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0 && !cancellationToken.IsCancellationRequested)
             {
                 totalBytesRead += read;
                 PercentageTranscribed?.Invoke(this, (int)(((double)totalBytesRead / inputFileSize) * 100));
                 await _transportService.SendData(buffer, read);
-
             }
+            process.Kill();
         }
 
         public async Task TranscribeChunk(byte[] data, int count)

@@ -24,8 +24,4 @@
     <PackageReference Include="Xabe.FFmpeg" Version="4.4.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
-
 </Project>

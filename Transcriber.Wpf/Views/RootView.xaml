@@ -17,7 +17,6 @@
              d:DesignHeight="600" d:DesignWidth="900">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="20" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="250" />
         </Grid.ColumnDefinitions>
@@ -25,13 +24,14 @@
             <RowDefinition Height="35"/>
             <RowDefinition />
         </Grid.RowDefinitions>
-        <Border Grid.Column ="1" Grid.Row="1" Background="white"/>
-        <Border Grid.Column="2"  Grid.Row="1" Background="#eee"/>
+        
+        <Border Grid.Column ="0" Grid.Row="1" Background="white"/>
+        <Border Grid.Column="1"  Grid.Row="1" Background="#eee" BorderThickness="1,0,0,0" BorderBrush="#aaa"/>
 
-        <Menu Grid.Row="0" Grid.ColumnSpan="3" IsMainMenu="True" FontSize="14" Padding="4" >
+        <Menu Grid.Row="0" Grid.ColumnSpan="2" IsMainMenu="True" FontSize="14" Padding="4" >
             <MenuItem Header="_File" Height="30">
                 <MenuItem
-      Header="Save"
+                    Header="Save"
       Icon="{materialDesign:PackIcon Kind=ContentSave}"></MenuItem>
                 <MenuItem
       Header="Save As.." />
@@ -82,9 +82,10 @@
             </MenuItem>
         </Menu>
 
-        <StackPanel Grid.Column="2" Grid.Row="1" HorizontalAlignment="Left" Margin="10" VerticalAlignment="Stretch">
+        <StackPanel Grid.Column="1" Grid.Row="1" HorizontalAlignment="Left" Margin="10" VerticalAlignment="Stretch">
             <Label Content="Выберите язык:"></Label>
             <ComboBox
+                    IsEnabled="{Binding IsTranscribingInProgress, Converter={StaticResource InverseBool}, UpdateSourceTrigger=PropertyChanged}"
                     Style="{StaticResource MaterialDesignFilledComboBox}"
                     materialDesign:HintAssist.Hint="Язык"
                     ItemsSource="{Binding AvailableLanguages, Mode=TwoWay}"
@@ -94,6 +95,7 @@
             Margin="0,20,0,10"
             Content="Выберите файл:" />
             <TextBox
+                IsEnabled="{Binding IsTranscribingInProgress, Converter={StaticResource InverseBool}, UpdateSourceTrigger=PropertyChanged}"
                 Background="White"
                 materialDesign:HintAssist.Hint="Путь до файла"
                 materialDesign:TextFieldAssist.RippleOnFocusEnabled="True"
@@ -103,6 +105,7 @@
                 Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  />
             <Button
+                IsEnabled="{Binding IsTranscribingInProgress, Converter={StaticResource InverseBool}, UpdateSourceTrigger=PropertyChanged}"
                 Opacity=".9"
                 Foreground="White"
                 HorizontalAlignment="Right"
@@ -114,81 +117,123 @@
         </StackPanel>
         <StackPanel Grid.Column="2" Grid.Row="1" VerticalAlignment="Bottom" Height="auto" Margin="10">
             <Button
+                mvx:Bi.nd="Command ToggleTranscriptionCommand"
                 Style="{StaticResource MaterialDesignRaisedAccentButton}"
                 materialDesign:ShadowAssist.ShadowDepth="Depth2"
                 VerticalAlignment="Bottom"
                 HorizontalAlignment="Right"
-                Margin="0,350,0,0"
                 Width="150"
                 materialDesign:ButtonProgressAssist.Value="-1"
-                materialDesign:ButtonProgressAssist.IsIndicatorVisible="False"
-                materialDesign:ButtonProgressAssist.IsIndeterminate="False"
-                Content="Начать"
+                materialDesign:ButtonProgressAssist.IsIndicatorVisible="{Binding IsTranscribingInProgress}"
+                materialDesign:ButtonProgressAssist.IsIndeterminate="{Binding IsTranscribingInProgress}"
+                Content="{Binding ToggleTranscriptionBtnContent, UpdateSourceTrigger=PropertyChanged}"
                 Cursor="Hand"
             />
         </StackPanel>
-        <StackPanel Grid.Column="1" Grid.Row="1" VerticalAlignment="Stretch">
-            <ToolBarTray Background="#eee">
-                <ToolBar Height="40" Background="#eee"
-    Style="{DynamicResource MaterialDesignToolBar}"
-    ClipToBounds="False">
+        <Grid Grid.Row="1" Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+
+            <ToolBarTray Grid.Row="0" Background="#eee">
+                <ToolBar
+                    Height="40"
+                    Background="#eee"
+                    Style="{DynamicResource MaterialDesignToolBar}"
+                    ClipToBounds="False">
                     <Button ToolTip="Сохранить" Padding="5">
                         <materialDesign:PackIcon Kind="ContentSave" Margin="0" Width="20" Height="20" RenderTransformOrigin="0.6,-1" />
                     </Button>
+                    <Button ToolTip="Удалить весь текст" Padding="5" mvx:Bi.nd="Command ClearTextCommand">
+                        <materialDesign:PackIcon Kind="Delete" Margin="0" Width="20" Height="20" RenderTransformOrigin="0.6,-1" />
+                    </Button>
                     <Separator />
                     <Button Padding="5"
-      Command="Cut"
-      ToolTip="Вырезать"
-      ToolBar.OverflowMode="AsNeeded"
-      >
+                            Command="Cut"
+                            ToolTip="Вырезать"
+                            ToolBar.OverflowMode="AsNeeded">
                         <materialDesign:PackIcon Kind="ContentCut" Width="20" Height="20" />
                     </Button>
                     <Button Padding="5"
-      Command="Copy"
-      ToolTip="Скопировать выделенный фрагмент"
-      ToolBar.OverflowMode="AsNeeded"
-      >
+                            Command="Copy"
+                            ToolTip="Скопировать выделенный фрагмент"
+                            ToolBar.OverflowMode="AsNeeded">
                         <materialDesign:PackIcon Kind="ContentCopy" Width="20" Height="20" />
                     </Button>
-
                     <Button Padding="5"
-      Command="Paste"
-      ToolTip="Вставить"
-      ToolBar.OverflowMode="AsNeeded"
-     >
+                            Command="Paste"
+                            ToolTip="Вставить"
+                            ToolBar.OverflowMode="AsNeeded">
                         <materialDesign:PackIcon Kind="ContentPaste" Width="20" Height="20" />
                     </Button>
-
                     <Separator />
-                    <Label
-      Content="Кегль:"
-      VerticalAlignment="Center" />
-                    <ComboBox>
-                        <ComboBoxItem
-        Content="10" />
-                        <ComboBoxItem
-        IsSelected="True"
-        Content="12" />
-                        <ComboBoxItem
-        Content="14" />
-                        <ComboBoxItem
-        Content="16" />
-                    </ComboBox>
-                    <CheckBox
-      Content="Check" />
-
+                    <Label Content="Кегль:" VerticalAlignment="Center" />
+                    <ComboBox
+                        ToolTip="Размер шрифта"
+                        ItemsSource="{Binding FontSizes, Mode=OneTime}"
+                        SelectedItem="{Binding SelectedFontSize, Mode=TwoWay}"
+                        materialDesign:TextFieldAssist.SuffixText="px"
+                        />
+                    <CheckBox Content="Check" />
                     <Separator />
                     <ToggleButton />
+                    <Separator />
+
+
+                    <TextBox
+                            Background="White"
+                            Margin="8 0 0 0"
+                            materialDesign:HintAssist.Hint="Поиск"
+                            materialDesign:TextFieldAssist.DecorationVisibility="Hidden"
+                            materialDesign:TextFieldAssist.TextFieldCornerRadius="15"
+                            BorderThickness="0"
+                            Width="170"
+                            VerticalAlignment="Center"
+                        />
                 </ToolBar>
             </ToolBarTray>
             <TextBox
-            SpellCheck.IsEnabled="True"
-            FontSize="16px"
-            Text="{Binding Transcription, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
-            TextWrapping="Wrap"
-            VerticalAlignment="Stretch"
-            VerticalScrollBarVisibility="Auto" />
-        </StackPanel>
+                Grid.Row="1"
+                materialDesign:TextFieldAssist.DecorationVisibility="Hidden"
+                BorderThickness="0"
+                SpellCheck.IsEnabled="False"
+                FontSize="{Binding SelectedFontSize, UpdateSourceTrigger=PropertyChanged}"
+                Text="{Binding TranscriptionModel.Text, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap"
+                VerticalScrollBarVisibility="Auto" />
+            <ToolBarTray Background="#eee" Grid.Row="2">
+                <ToolBar
+                    Height="30"
+                    Background="#eee">
+                    <ProgressBar
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        Orientation="Horizontal"
+
+                        Height="20"
+                        Width="120"
+                    >
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Setter Property="Value" Value="{Binding RecordLevel}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CanProcessFile}" Value="True">
+                                        <Setter Property="Value" Value="{Binding PercentageTranscribed}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
+                </ToolBar>
+            </ToolBarTray>
+        </Grid>
         <Label Height="26"
                Grid.Column="2"
                Grid.Row="1"
@@ -196,15 +241,5 @@
                Content="{Binding DebugInfo}"
             Margin="10,300,10,0"
             VerticalAlignment="Top" />
-
-        <ProgressBar
-            Grid.Row="1"
-            Grid.Column="0"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
-            Orientation="Vertical"
-            Value="{Binding RecordLevel}"
-            Height="20"
-            />
     </Grid>
 </views:MvxWpfView>

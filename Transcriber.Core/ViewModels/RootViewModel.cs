@@ -15,17 +15,18 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Transcriber.Core.Models;
 using Transcriber.Core.Services;
 
 namespace Transcriber.Core.ViewModels
 {
-
-
     public class RootViewModel : MvxViewModel
     {
+        private CancellationTokenSource _cancellationTokenSource = null;
         private string _debugInfo;
-        private string _transcription;
-        private string _partial;
+        private int[] _fontSizes;
+        private int _selectedFontSize;
+        private TranscriptionModel _transcriptionModel;
         private readonly IConfigurationService _configurationService;
         private string _selectedLanguage;
         private ConcurrentQueue<byte[]> _bufferQueue = new ConcurrentQueue<byte[]>();
@@ -33,49 +34,126 @@ namespace Transcriber.Core.ViewModels
         private MediaFoundationResampler _resampler;
         private string _selectedFilePath;
         private readonly ITranscribeService _transcribeService;
-        private MMDevice _selectedDevice;
-        private ObservableCollection<MMDevice> _deviceNames;
+
         private IEnumerable<string> _availableLanguages;
 
-        private bool _enableStartRecord;
-        private bool _stopRecordStopRecord;
+
         /// Records the audio of the selected device.
         private WasapiCapture _audioCapture;
-
+        private bool _isTranscribingInProgress;
         /// Converts the device source into a wavesource.
 
         private float _recordLevel = 0;
 
-        public IMvxAsyncCommand TranscribeFromFileCommand { get; set; }
-        public IMvxCommand StopRecordingCommand { get; set; }
-        public IMvxCommand StartRecordingCommand { get; set; }
-
+        public MvxCommand ToggleTranscriptionCommand { get; set; }
+        public MvxCommand ClearTextCommand { get; set; }
+        public MvxAsyncCommand TranscribeFileCommand { get; set; }
 
         public RootViewModel(ITranscribeService transcribeService, IConfigurationService _configurationService)
         {
-            _transcription = string.Empty;
-            _partial = string.Empty;
+            _fontSizes = new int[] { 8, 12, 14, 16, 18, 20, 22, 24 };
+            _selectedFontSize = _fontSizes[3];
+            _isTranscribingInProgress = false;
+            _transcriptionModel = new TranscriptionModel();
             _configurationService = new ConfigurationService();
             _transcribeService = transcribeService;
             _transcribeService.NewTranscriptionData += ProcessRawData;
             _transcribeService.PercentageTranscribed += UpdatePercentageTranscribed;
-            TranscribeFromFileCommand = new MvxAsyncCommand(async () => await _transcribeService.TranscribeFile(SelectedFilePath));
 
-
-            StopRecordingCommand = new MvxCommand(StopRecording);
-
-            StartRecordingCommand = new MvxCommand(() =>
-            {
-                    StartRecord();
+            ToggleTranscriptionCommand = new MvxCommand(StartTranscribing);
+            ClearTextCommand = new MvxCommand(() => {
+                TranscriptionModel.Clear();
+                RaisePropertyChanged(TranscriptionModel.Text);
             });
+            TranscribeFileCommand = new MvxAsyncCommand(TranscribeFile);
 
             AvailableLanguages = _configurationService.GetLanguages().Keys.AsEnumerable();
             if (AvailableLanguages.Count() != 0)
             {
                 SelectedLanguage = AvailableLanguages.First();
             }
-            EnableStartRecord = true;
+
         }
+
+        public int SelectedFontSize
+        {
+            get => _selectedFontSize;
+            set
+            {
+                SetProperty(ref _selectedFontSize, value);
+            }
+        }
+
+        public int[] FontSizes
+        {
+            get => _fontSizes;
+        }
+
+        public bool IsTranscribingInProgress {
+            get => _isTranscribingInProgress;
+            set
+            {
+                SetProperty(ref _isTranscribingInProgress, value);
+                RaisePropertyChanged(() => ToggleTranscriptionBtnContent);
+            }
+        }
+
+        private async Task TranscribeFile()
+        {
+            _cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+            await _transcribeService.TranscribeFile(SelectedFilePath, cancellationToken);
+            _cancellationTokenSource.Dispose();
+            IsTranscribingInProgress = false;
+        }
+
+        public TranscriptionModel TranscriptionModel
+        {
+            get => _transcriptionModel;
+            set
+            {
+                if (_transcriptionModel != value)
+                {
+                    SetProperty(ref _transcriptionModel, value);
+                }
+            }
+        }
+
+    private void StartTranscribing()
+        {
+            if (!IsTranscribingInProgress)
+            {
+                if (CanProcessFile)
+                {
+                    TranscribeFileCommand.Execute();
+                }
+                else
+                {
+                    StartRecord();
+                }
+                IsTranscribingInProgress = true;
+            }
+            else
+            {
+                if (CanProcessFile)
+                {
+                    if (_cancellationTokenSource != null)
+                    {
+                        _cancellationTokenSource.Cancel();
+                    }
+
+                }
+                else
+                {
+                    StopRecording();
+                }
+                IsTranscribingInProgress = false;
+            }
+        }
+
+        public string ToggleTranscriptionBtnContent => !IsTranscribingInProgress ? "Старт" : "Стоп";
+
+
 
         private void UpdatePercentageTranscribed(object sender, int percentage)
         {
@@ -88,43 +166,13 @@ namespace Transcriber.Core.ViewModels
         public int PercentageTranscribed
         {
             get => _percentageTranscribed;
-            set {
+            set
+            {
                 SetProperty(ref _percentageTranscribed, value);
             }
         }
 
 
-        private string Partial
-        {
-            get => _partial;
-            set
-            {
-                _partial = value;
-                RaisePropertyChanged(() => Transcription);
-            }
-        }
-
-        public string Transcription
-        {
-            get
-            {
-                if (String.IsNullOrEmpty(Partial))
-                {
-                    return _transcription;
-                }
-                else
-                {
-                    return _transcription + " " + Partial;
-                }
-            }
-
-            set
-            {
-                _transcription += " " + value;
-                Partial = string.Empty;
-                RaisePropertyChanged(() => Transcription);
-            }
-        }
 
         private void ProcessRawData(object sender, string rawStr)
         {
@@ -133,13 +181,13 @@ namespace Transcriber.Core.ViewModels
                 JObject respond = JObject.Parse(rawStr);
                 if (respond.ContainsKey("partial"))
                 {
-                    Partial = respond["partial"].ToString();
-                    RaisePropertyChanged(() => Transcription);
+                    TranscriptionModel.Partial = respond["partial"].ToString();
+                    RaisePropertyChanged(() => TranscriptionModel);
                 }
                 if (respond.ContainsKey("text"))
                 {
-                    Transcription = respond["text"].ToString();
-                    RaisePropertyChanged(() => Transcription);
+                    TranscriptionModel.Text = respond["text"].ToString();
+                    RaisePropertyChanged(() => TranscriptionModel);
                 }
             }
             catch (JsonReaderException e)
@@ -172,24 +220,7 @@ namespace Transcriber.Core.ViewModels
             }
         }
 
-        // ========Capture audio part==========
 
-
-        public bool EnableStartRecord
-        {
-            get => _enableStartRecord;
-            set => SetProperty(ref _enableStartRecord, value);
-        }
-
-
-        public bool EnableStopRecord
-        {
-            get => _stopRecordStopRecord;
-            set
-            {
-                SetProperty(ref _stopRecordStopRecord, value);
-            }
-        }
 
 
         private int _threadSafeBoolBackValue = 0;
@@ -208,29 +239,25 @@ namespace Transcriber.Core.ViewModels
 
         private void StartRecord()
         {
+            try
+            {
+                _audioCapture = new WasapiLoopbackCapture();
 
-                try
-                {
-                    _audioCapture = new WasapiLoopbackCapture();
+                _audioCapture.RecordingStopped += OnRecordingStopped;
+                _audioCapture.DataAvailable += OnDataAvailable;
 
-                    _audioCapture.RecordingStopped += OnRecordingStopped;
-                    _audioCapture.DataAvailable += OnDataAvailable;
+                /* Message = "Recording...";*/
+                _bufferedWaveProvider = new BufferedWaveProvider(_audioCapture.WaveFormat);
 
-                    /* Message = "Recording...";*/
-                    _bufferedWaveProvider = new BufferedWaveProvider(_audioCapture.WaveFormat);
+                _resampler = new MediaFoundationResampler(_bufferedWaveProvider, new WaveFormat(8000, 16, 1));
+                _resampler.ResamplerQuality = 60;
 
-
-                    _resampler = new MediaFoundationResampler(_bufferedWaveProvider, new WaveFormat(8000, 16, 1));
-                    _resampler.ResamplerQuality = 60;
-
-                    EnableStartRecord = false;
-                    EnableStopRecord = true;
-                    _audioCapture.StartRecording();
-                }
-                catch (Exception e)
-                {
-                    /*MessageBox.Show(e.Message);*/
-                }
+                _audioCapture.StartRecording();
+            }
+            catch (Exception e)
+            {
+                /*MessageBox.Show(e.Message);*/
+            }
         }
 
         private float CalculateRecordLevel(WaveInEventArgs args)
@@ -267,8 +294,7 @@ namespace Transcriber.Core.ViewModels
             _bufferQueue = new ConcurrentQueue<byte[]>();
             _bufferedWaveProvider.ClearBuffer();
             RecordLevel = 0.0F;
-            EnableStopRecord = false;
-            EnableStartRecord = true;
+            IsTranscribingInProgress = false;
         }
 
         private void OnDataAvailable(object sender, WaveInEventArgs waveInEventArgs)
@@ -364,5 +390,6 @@ namespace Transcriber.Core.ViewModels
         }
 
         public bool CanProcessFile => SelectedFilePath?.Length > 0;
+
     }
 }
