@@ -88,9 +88,10 @@
                     IsEnabled="{Binding IsTranscribingInProgress, Converter={StaticResource InverseBool}, UpdateSourceTrigger=PropertyChanged}"
                     Style="{StaticResource MaterialDesignFilledComboBox}"
                     materialDesign:HintAssist.Hint="Язык"
-                    ItemsSource="{Binding AvailableLanguages, Converter={StaticResource FilterLanguageIn}, Mode=TwoWay}"
-                    SelectedIndex="0"
+                    DisplayMemberPath="Key"
+                    ItemsSource="{Binding AvailableLanguages, Mode=TwoWay}"
                     SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
+
             Width="230" />
             <Label
             Margin="0,20,0,10"
@@ -147,7 +148,7 @@
                     Background="#eee"
                     Style="{DynamicResource MaterialDesignToolBar}"
                     ClipToBounds="False">
-                    <Button ToolTip="Сохранить" Padding="5">
+                    <Button ToolTip="Сохранить" Padding="5" IsEnabled="False">
                         <materialDesign:PackIcon Kind="ContentSave" Margin="0" Width="20" Height="20" RenderTransformOrigin="0.6,-1" />
                     </Button>
                     <Button ToolTip="Удалить весь текст" Padding="5" mvx:Bi.nd="Command ClearTextCommand">
@@ -155,6 +156,7 @@
                     </Button>
                     <Separator />
                     <Button Padding="5"
+                            IsEnabled="False"
                             Command="Cut"
                             ToolTip="Вырезать"
                             ToolBar.OverflowMode="AsNeeded">
@@ -205,7 +207,7 @@
                 BorderThickness="0"
                 SpellCheck.IsEnabled="False"
                 FontSize="{Binding SelectedFontSize, UpdateSourceTrigger=PropertyChanged}"
-                Text="{Binding TranscriptionModel.Text, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
+                Text="{Binding Transcription, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                 TextWrapping="Wrap"
                 VerticalScrollBarVisibility="Auto" />
             <ToolBarTray Background="#eee" Grid.Row="2">
@@ -246,15 +248,13 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </Grid>
+                    <Label
+                        d:Content="Logging"
+                        VerticalAlignment="Bottom"
+                        Margin="5, 0, 0, 0"
+                        Content="{Binding InfoMessage}"/>
                 </ToolBar>
             </ToolBarTray>
         </Grid>
-        <Label Height="26"
-               Grid.Column="2"
-               Grid.Row="1"
-               d:Content="Info"
-               Content="{Binding DebugInfo}"
-            Margin="10,300,10,0"
-            VerticalAlignment="Top" />
-    </Grid>
+      </Grid>
 </views:MvxWpfView>

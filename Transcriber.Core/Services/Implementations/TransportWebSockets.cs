@@ -12,6 +12,7 @@ namespace Transcriber.Core.Services
         private ClientWebSocket _ws;
         private Uri _address;
         public event EventHandler<string> NewDataRecieved;
+        public event EventHandler<string> InfoMessage;
 
         private async Task OpenConnection()
         {
@@ -35,10 +36,17 @@ namespace Transcriber.Core.Services
         public void SetAddress(string addr)
         {
             Address = new Uri(addr);
-            var disconnectTask = Task.Run(() => CloseConnection());
-            disconnectTask.Wait();
-            var connectTask = Task.Run(() => OpenConnection());
-            connectTask.Wait();
+            try
+            {
+                var disconnectTask = Task.Run(() => CloseConnection());
+                disconnectTask.Wait();
+                var connectTask = Task.Run(() => OpenConnection());
+                connectTask.Wait();
+            } catch (Exception e)
+            {
+                InfoMessage?.Invoke(this, $"Ошибка: {e.Message}");
+            }
+
         }
 
         public async Task CloseConnection()

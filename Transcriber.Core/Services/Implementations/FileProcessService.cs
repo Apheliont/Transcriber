@@ -12,26 +12,25 @@ using Transcriber.Core.Util;
 
 namespace Transcriber.Core.Services
 {
-    public class TranscribeService : ITranscribeService
+    public class FileProcessService : IFileProcessService
     {
         private readonly ITransportService _transportService;
-        public event EventHandler<string> NewTranscriptionData;
         public event EventHandler<int> PercentageTranscribed;
-        public TranscribeService()
+        public event EventHandler<string> InfoMessage;
+        private CancellationTokenSource _cancellationTokenSource = null;
+
+        public FileProcessService()
         {
             _transportService = Mvx.IoCProvider.Resolve<ITransportService>();
-            _transportService.NewDataRecieved += OnNewData;
-
-        }
-
-        private void OnNewData(object sender, string data)
-        {
-            NewTranscriptionData?.Invoke(this, data);
         }
 
 
-        public async Task TranscribeFile(string filePath, CancellationToken cancellationToken)
+        public async Task TranscribeFile(string filePath)
         {
+            InfoMessage.Invoke(this, "Обработка файла...");
+            _cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
             var process = new Process();
             process.StartInfo.FileName = "ffmpeg.exe";
             process.StartInfo.Arguments = $"-i \"{filePath}\" -ar 8000 -ac 1 -f s16le -";
@@ -43,7 +42,8 @@ namespace Transcriber.Core.Services
             process.Start();
 
 
-            var task = Task.Run(() => {
+            var task = Task.Run(() =>
+            {
                 FFmpegPercentageParser ffmpegParser = new FFmpegPercentageParser();
                 string line;
                 int previousPercent;
@@ -64,16 +64,19 @@ namespace Transcriber.Core.Services
             {
                 await _transportService.SendData(buffer, read);
             }
-
+            await _transportService.SendFinalData();
+            await _transportService.CloseConnection();
             process.Kill();
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
+            InfoMessage.Invoke(this, "Операция завершена");
         }
 
-        public async Task TranscribeChunk(byte[] data, int count)
+        public void Stop()
         {
-            await _transportService.SendData(data, count);
+            _cancellationTokenSource?.Cancel();
+            InfoMessage?.Invoke(this, "Обработка файла отменена");
         }
-
-
     }
 
 }
