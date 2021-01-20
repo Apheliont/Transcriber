@@ -10,5 +10,6 @@ namespace Transcriber.Core.Services
         event EventHandler<string> NewDataRecieved;
         Task SendData(byte[] data, int count);
         Task SendFinalData();
+        void SetAddress(string addr);
     }
 }

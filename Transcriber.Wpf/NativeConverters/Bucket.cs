@@ -11,4 +11,9 @@ namespace Transcriber.Wpf.NativeConverters
     public class NativeInverseBoolConverter : MvxNativeValueConverter<InverseBoolConverter>
     {
     }
+
+    public class NativeFilterLanguageIn : MvxNativeValueConverter<FilterLanguageIn>
+    {
+
+    }
 }

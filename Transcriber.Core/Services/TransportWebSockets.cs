@@ -10,6 +10,7 @@ namespace Transcriber.Core.Services
     public class TransportWebSockets : ITransportService
     {
         private ClientWebSocket _ws;
+        private Uri _address;
         public event EventHandler<string> NewDataRecieved;
 
         private async Task OpenConnection()
@@ -18,13 +19,31 @@ namespace Transcriber.Core.Services
             {
                 _ws = new ClientWebSocket();
                 //_ws.Options.KeepAliveInterval = new TimeSpan(3_000_000); // 30 min
-                await _ws.ConnectAsync(new Uri("wss://api.alphacephei.com/asr/ru/"), CancellationToken.None);
+                await _ws.ConnectAsync(Address, CancellationToken.None);
             }
+        }
+
+        public Uri Address
+        {
+            get => _address;
+            private set
+            {
+                _address = value;
+            }
+        }
+
+        public void SetAddress(string addr)
+        {
+            Address = new Uri(addr);
+            var disconnectTask = Task.Run(() => CloseConnection());
+            disconnectTask.Wait();
+            var connectTask = Task.Run(() => OpenConnection());
+            connectTask.Wait();
         }
 
         public async Task CloseConnection()
         {
-            if (_ws?.State == WebSocketState.Open || _ws?.State == WebSocketState.Connecting)
+            if (_ws?.State == WebSocketState.Open)
             {
                 await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", CancellationToken.None);
             }

@@ -34,13 +34,23 @@ namespace Transcriber.Core.Models
                 }
                 else
                 {
+                    if (String.IsNullOrEmpty(_text))
+                    {
+                        return Partial;
+                    }
                     return _text + " " + Partial;
                 }
             }
 
             set
             {
-                _text += " " + value;
+                if (String.IsNullOrEmpty(_text))
+                {
+                    _text = value.Trim();
+                } else
+                {
+                    _text += " " + value;
+                }
                 Partial = string.Empty;
             }
         }

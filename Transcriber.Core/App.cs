@@ -11,7 +11,7 @@ namespace Transcriber.Core
         {
             Mvx.IoCProvider.RegisterType<ITranscribeService, TranscribeService>();
             Mvx.IoCProvider.RegisterType<IConfigurationService, ConfigurationService>();
-            Mvx.IoCProvider.RegisterType<ITransportService, TransportWebSockets>();
+            Mvx.IoCProvider.RegisterSingleton<ITransportService>(new TransportWebSockets());
             RegisterAppStart<RootViewModel>();
         }
     }

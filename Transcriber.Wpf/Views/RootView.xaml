@@ -88,8 +88,9 @@
                     IsEnabled="{Binding IsTranscribingInProgress, Converter={StaticResource InverseBool}, UpdateSourceTrigger=PropertyChanged}"
                     Style="{StaticResource MaterialDesignFilledComboBox}"
                     materialDesign:HintAssist.Hint="Язык"
-                    ItemsSource="{Binding AvailableLanguages, Mode=TwoWay}"
+                    ItemsSource="{Binding AvailableLanguages, Converter={StaticResource FilterLanguageIn}, Mode=TwoWay}"
                     SelectedIndex="0"
+                    SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
             Width="230" />
             <Label
             Margin="0,20,0,10"
@@ -192,12 +193,13 @@
                             materialDesign:TextFieldAssist.DecorationVisibility="Hidden"
                             materialDesign:TextFieldAssist.TextFieldCornerRadius="15"
                             BorderThickness="0"
-                            Width="170"
+                            Width="150"
                             VerticalAlignment="Center"
                         />
                 </ToolBar>
             </ToolBarTray>
             <TextBox
+                Padding="5"
                 Grid.Row="1"
                 materialDesign:TextFieldAssist.DecorationVisibility="Hidden"
                 BorderThickness="0"
@@ -210,7 +212,8 @@
                 <ToolBar
                     Height="30"
                     Background="#eee">
-                    <ProgressBar
+                    <Grid>
+                        <ProgressBar
                         Grid.Row="1"
                         Grid.Column="0"
                         HorizontalAlignment="Stretch"
@@ -220,17 +223,29 @@
                         Height="20"
                         Width="120"
                     >
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Setter Property="Value" Value="{Binding RecordLevel}"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CanProcessFile}" Value="True">
-                                        <Setter Property="Value" Value="{Binding PercentageTranscribed}"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Value" Value="{Binding RecordLevel}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanProcessFile}" Value="True">
+                                            <Setter Property="Value" Value="{Binding PercentageTranscribed}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" >
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers >
+                                        <DataTrigger Binding="{Binding CanProcessFile}" Value="True">
+                                            <Setter Property="Text" Value="{Binding PercentageTranscribed}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
                 </ToolBar>
             </ToolBarTray>
         </Grid>

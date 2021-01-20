@@ -21,7 +21,6 @@
     <PackageReference Include="MvvmCross" Version="7.1.2" />
     <PackageReference Include="NAudio" Version="1.10.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="Xabe.FFmpeg" Version="4.4.0" />
   </ItemGroup>
 
 </Project>

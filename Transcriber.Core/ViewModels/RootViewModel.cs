@@ -1,4 +1,5 @@
 ﻿
+using MvvmCross;
 using MvvmCross.Commands;
 using MvvmCross.ViewModels;
 using NAudio.CoreAudioApi;
@@ -11,49 +12,53 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Transcriber.Core.Models;
 using Transcriber.Core.Services;
+using Transcriber.Core.Util;
 
 namespace Transcriber.Core.ViewModels
 {
     public class RootViewModel : MvxViewModel
     {
+
+        private Process ffmpegProcess;
         private CancellationTokenSource _cancellationTokenSource = null;
+        private readonly ITransportService _transportService;
         private string _debugInfo;
-        private int[] _fontSizes;
+        private readonly int[] _fontSizes;
         private int _selectedFontSize;
         private TranscriptionModel _transcriptionModel;
         private readonly IConfigurationService _configurationService;
-        private string _selectedLanguage;
-        private ConcurrentQueue<byte[]> _bufferQueue = new ConcurrentQueue<byte[]>();
-        private BufferedWaveProvider _bufferedWaveProvider;
-        private MediaFoundationResampler _resampler;
+        private KeyValuePair<string, string> _selectedLanguage;
+
         private string _selectedFilePath;
         private readonly ITranscribeService _transcribeService;
 
-        private IEnumerable<string> _availableLanguages;
+        private IEnumerable<KeyValuePair<string, string>> _availableLanguages;
 
+        private readonly MvxInteraction<YesNoQuestion> _yesNoInteraction = new MvxInteraction<YesNoQuestion>();
 
-        /// Records the audio of the selected device.
         private WasapiCapture _audioCapture;
         private bool _isTranscribingInProgress;
-        /// Converts the device source into a wavesource.
 
-        private float _recordLevel = 0;
+        private float _recordLevel = 0.0F;
 
         public MvxCommand ToggleTranscriptionCommand { get; set; }
         public MvxCommand ClearTextCommand { get; set; }
         public MvxAsyncCommand TranscribeFileCommand { get; set; }
-
+        public IMvxInteraction<YesNoQuestion> YesNoInteraction => _yesNoInteraction;
         public RootViewModel(ITranscribeService transcribeService, IConfigurationService _configurationService)
         {
-            _fontSizes = new int[] { 8, 12, 14, 16, 18, 20, 22, 24 };
+
+            _fontSizes = new int[] { 8, 12, 14, 16, 18, 20, 22, 24, 26 };
             _selectedFontSize = _fontSizes[3];
             _isTranscribingInProgress = false;
+            _transportService = Mvx.IoCProvider.Resolve<ITransportService>();
             _transcriptionModel = new TranscriptionModel();
             _configurationService = new ConfigurationService();
             _transcribeService = transcribeService;
@@ -66,11 +71,11 @@ namespace Transcriber.Core.ViewModels
                 RaisePropertyChanged(TranscriptionModel.Text);
             });
             TranscribeFileCommand = new MvxAsyncCommand(TranscribeFile);
-
-            AvailableLanguages = _configurationService.GetLanguages().Keys.AsEnumerable();
+            //Keys.AsEnumerable();
+            AvailableLanguages = _configurationService.GetLanguages().ToArray();
             if (AvailableLanguages.Count() != 0)
             {
-                SelectedLanguage = AvailableLanguages.First();
+                SelectedLanguage = AvailableLanguages.FirstOrDefault();
             }
 
         }
@@ -123,6 +128,20 @@ namespace Transcriber.Core.ViewModels
         {
             if (!IsTranscribingInProgress)
             {
+                if (TranscriptionModel.Text.Length > 0)
+                {
+                    var request = new YesNoQuestion
+                    {
+                        YesNoCallback = (ok) =>
+                        {
+                            if (!ok)
+                                return;
+                        },
+                        Question = "Весь несохраненный текст будет потерян. Вы уверены?"
+                    };
+
+                    _yesNoInteraction.Raise(request);
+                }
                 if (CanProcessFile)
                 {
                     TranscribeFileCommand.Execute();
@@ -157,7 +176,6 @@ namespace Transcriber.Core.ViewModels
 
         private void UpdatePercentageTranscribed(object sender, int percentage)
         {
-            DebugInfo = percentage.ToString();
             PercentageTranscribed = percentage;
         }
 
@@ -242,15 +260,21 @@ namespace Transcriber.Core.ViewModels
             try
             {
                 _audioCapture = new WasapiLoopbackCapture();
+                DebugInfo = _audioCapture.WaveFormat.Encoding.ToString();
+                ffmpegProcess = new Process();
+                ffmpegProcess.StartInfo.FileName = "ffmpeg.exe";
+                ffmpegProcess.StartInfo.Arguments = $"-f f32le -ac 2 -ar 44100 -i - -ar 8000 -ac 1 -f s16le -";
+                ffmpegProcess.StartInfo.RedirectStandardInput = true;
+                ffmpegProcess.StartInfo.RedirectStandardOutput = true;
+                ffmpegProcess.StartInfo.UseShellExecute = false;
+                ffmpegProcess.StartInfo.CreateNoWindow = true;
+                ffmpegProcess.Start();
+
 
                 _audioCapture.RecordingStopped += OnRecordingStopped;
                 _audioCapture.DataAvailable += OnDataAvailable;
 
                 /* Message = "Recording...";*/
-                _bufferedWaveProvider = new BufferedWaveProvider(_audioCapture.WaveFormat);
-
-                _resampler = new MediaFoundationResampler(_bufferedWaveProvider, new WaveFormat(8000, 16, 1));
-                _resampler.ResamplerQuality = 60;
 
                 _audioCapture.StartRecording();
             }
@@ -288,27 +312,24 @@ namespace Transcriber.Core.ViewModels
             {
                 /*Message = "Recording Error: " + e.Exception.Message;*/
             }
+            ffmpegProcess.StandardInput.BaseStream.Flush();
+            ffmpegProcess.StandardInput.BaseStream.Close();
+            ffmpegProcess?.Kill();
 
             _audioCapture.Dispose();
             _audioCapture = null;
-            _bufferQueue = new ConcurrentQueue<byte[]>();
-            _bufferedWaveProvider.ClearBuffer();
+
             RecordLevel = 0.0F;
             IsTranscribingInProgress = false;
         }
 
         private void OnDataAvailable(object sender, WaveInEventArgs waveInEventArgs)
         {
+            var ffmpegIn = ffmpegProcess.StandardInput.BaseStream;
             RecordLevel = CalculateRecordLevel(waveInEventArgs);
+            ffmpegIn.Write(waveInEventArgs.Buffer, 0, waveInEventArgs.BytesRecorded);
 
-            _bufferedWaveProvider.AddSamples(waveInEventArgs.Buffer, 0, waveInEventArgs.BytesRecorded);
-
-            byte[] buffer = new byte[1000];
-            _resampler.Read(buffer, 0, buffer.Length);
-
-            _bufferQueue.Enqueue(buffer);
-            Task.Run(WriteData);
-
+            Task.Run(async () => await WriteData());
         }
 
         private async Task WriteData()
@@ -317,37 +338,13 @@ namespace Transcriber.Core.ViewModels
             // Лочим под отдельный поток
             StreamingIsBusy = true;
 
-            // отправляем серверу куски по 8000 байт
-            byte[] buf = new byte[8000];
-
-            while (true)
+            int read;
+            var buffer = new byte[8000];
+            while ((read = ffmpegProcess.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0)
             {
-                if (_bufferQueue.Count < 8 && _audioCapture != null)
-                {
-                    await Task.Delay(300);
-                    continue;
-                }
-                if (_bufferQueue.Count == 0 && _audioCapture == null)
-                {
-                    break;
-                }
-
-
-                for (int i = 0; i < 8; i++)
-                {
-                    if (_bufferQueue.TryDequeue(out byte[] buffer))
-                    {
-                        Buffer.BlockCopy(buffer, 0, buf, i * 1000, buffer.Length);
-                    }
-                    else
-                    {
-                        buf = buf.Take(i * 1000).ToArray();
-                        break;
-                    }
-                }
-                await _transcribeService.TranscribeChunk(buf, buf.Length);
-
+                await _transcribeService.TranscribeChunk(buffer, read);
             }
+
             StreamingIsBusy = false;
         }
 
@@ -357,7 +354,7 @@ namespace Transcriber.Core.ViewModels
             _audioCapture?.StopRecording();
         }
 
-        public IEnumerable<string> AvailableLanguages
+        public IEnumerable<KeyValuePair<string, string>> AvailableLanguages
         {
             get => _availableLanguages;
             set
@@ -366,12 +363,13 @@ namespace Transcriber.Core.ViewModels
             }
         }
 
-        public string SelectedLanguage
+        public KeyValuePair<string, string> SelectedLanguage
         {
             get => _selectedLanguage;
             set
             {
                 SetProperty(ref _selectedLanguage, value);
+                _transportService.SetAddress(value.Value);
             }
         }
 

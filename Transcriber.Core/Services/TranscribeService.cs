@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MvvmCross;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -7,7 +8,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Xabe.FFmpeg;
+using Transcriber.Core.Util;
 
 namespace Transcriber.Core.Services
 {
@@ -16,9 +17,9 @@ namespace Transcriber.Core.Services
         private readonly ITransportService _transportService;
         public event EventHandler<string> NewTranscriptionData;
         public event EventHandler<int> PercentageTranscribed;
-        public TranscribeService(ITransportService transportService)
+        public TranscribeService()
         {
-            _transportService = transportService;
+            _transportService = Mvx.IoCProvider.Resolve<ITransportService>();
             _transportService.NewDataRecieved += OnNewData;
 
         }
@@ -28,30 +29,42 @@ namespace Transcriber.Core.Services
             NewTranscriptionData?.Invoke(this, data);
         }
 
+
         public async Task TranscribeFile(string filePath, CancellationToken cancellationToken)
         {
-            long inputFileSize = new FileInfo(filePath).Length;
-            long totalBytesRead = 0;
-
             var process = new Process();
             process.StartInfo.FileName = "ffmpeg.exe";
             process.StartInfo.Arguments = $"-i \"{filePath}\" -ar 8000 -ac 1 -f s16le -";
             process.StartInfo.RedirectStandardInput = false;
             process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
             process.Start();
 
 
+            var task = Task.Run(() => {
+                FFmpegPercentageParser ffmpegParser = new FFmpegPercentageParser();
+                string line;
+                int previousPercent;
+                while ((line = process.StandardError.ReadLine()) != null && !cancellationToken.IsCancellationRequested)
+                {
+                    ffmpegParser.Parse(line);
+                    if (ffmpegParser.GetPercentCompleted() is int currentPercent)
+                    {
+                        previousPercent = currentPercent;
+                        PercentageTranscribed?.Invoke(this, currentPercent);
+                    }
+                }
+            });
 
             var buffer = new byte[8000];
             int read;
             while ((read = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0 && !cancellationToken.IsCancellationRequested)
             {
-                totalBytesRead += read;
-                PercentageTranscribed?.Invoke(this, (int)(((double)totalBytesRead / inputFileSize) * 100));
                 await _transportService.SendData(buffer, read);
             }
+
             process.Kill();
         }
 
